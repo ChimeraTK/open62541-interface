@@ -15,6 +15,8 @@ else()
     set(UPDATESTRING "git checkout *")
 endif()
 
+include(cmake/set_default_build_to_release.cmake)
+
 include(ExternalProject)
  ExternalProject_Add(external-open62541
    GIT_REPOSITORY "https://github.com/open62541/open62541.git"
@@ -46,9 +48,6 @@ include(ExternalProject)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/include/ DESTINATION include)
 # this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
 include(GNUInstallDirs)
-# unfortunately, when  ${CMAKE_INSTALL_LIBDIR} evaluates to lib/<multiarch-tuple>, e.g. lib/x86_64-linux-gnu, the
-# last path part breaks relocatable cmake-config. So need to remove it.
-STRING(REGEX REPLACE "/.*$" "" CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
 # source lib dir is also architecture-dependent, sometimes called lib64
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
