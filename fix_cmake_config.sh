@@ -22,5 +22,11 @@ fi
 
 for file in `ls $1/*.cmake`; do
   echo "Fixing file: $file Lib Path is: $2"
-  sed -i "s|\${_IMPORT_PREFIX}/lib|\${_IMPORT_PREFIX}/$2|g" $file
+  if grep -q "IMPORT_PREFIX}/lib" $file; then
+    if grep -q "IMPORT_PREFIX}/$2" $file; then
+      echo "File is already fixed."
+    else
+      sed -i "s|\${_IMPORT_PREFIX}/lib/|\${_IMPORT_PREFIX}/$2/|g" $file
+    fi
+  fi
 done
