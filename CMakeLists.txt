@@ -45,18 +45,15 @@ ExternalProject_Add(external-open62541
   UPDATE_COMMAND bash -c ${UPDATESTRING}
 )
 
-#add_custom_command(fix_cmake_config 
-#  DEPENDS external-open62541
-#  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh
-#  )
+# this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
+include(GNUInstallDirs)
 add_custom_target(fix_cmake_config ALL 
   DEPENDS external-open62541
-  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541  ${CMAKE_INSTALL_LIBDIR}
+  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541 ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/include/ DESTINATION include)
-# this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
-include(GNUInstallDirs)
+
 # source lib dir is also architecture-dependent, sometimes called lib64
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
