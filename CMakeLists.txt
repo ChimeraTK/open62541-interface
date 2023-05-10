@@ -18,6 +18,9 @@ endif()
 include(cmake/set_default_build_to_release.cmake)
 
 include(ExternalProject)
+# setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
+# is not required. 
+# However in the debian packaging scripts installing the external project to /usr/ is not allowed - permission denied...
 ExternalProject_Add(external-open62541
   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
   GIT_TAG "v1.3.3"
