@@ -57,9 +57,24 @@ add_custom_target(fix_cmake_config ALL
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/include/ DESTINATION include)
 
-# source lib dir is also architecture-dependent, sometimes called lib64
-install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+if(NOT (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib") )
+  message(STATUS "Installing cmake configuration from open62541-interface project.")
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} 
+          PATTERN "cmake" EXCLUDE)
+  # source lib dir is also architecture-dependent, sometimes called lib64
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} 
+          PATTERN "cmake" EXCLUDE)
+  install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake_config/ DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/open62541/)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541/ DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/open62541/ 
+          FILES_MATCHING PATTERN "open62541Targets-*")    
+else()
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+  # source lib dir is also architecture-dependent, sometimes called lib64
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+endif()
+
+
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/share/ DESTINATION share )
 configure_file(${PROJECT_SOURCE_DIR}/open62541-config.in "${PROJECT_BINARY_DIR}/open62541-config" @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/open62541-config DESTINATION bin COMPONENT dev)

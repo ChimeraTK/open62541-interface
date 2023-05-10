@@ -20,9 +20,9 @@ if [ -z $2 ] ; then
   exit 1
 fi
 
-for file in `ls $1/*.cmake`; do
-  echo "Fixing file: $file Lib Path is: $2"
+for file in `ls $1/open62541Targets-*.cmake`; do
   if grep -q "IMPORT_PREFIX}/lib" $file; then
+    echo "Fixing file: $file Lib Path is: $2"
     if grep -q "IMPORT_PREFIX}/$2" $file; then
       echo "File is already fixed."
     else
