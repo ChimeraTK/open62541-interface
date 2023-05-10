@@ -18,32 +18,41 @@ endif()
 include(cmake/set_default_build_to_release.cmake)
 
 include(ExternalProject)
- ExternalProject_Add(external-open62541
-   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
-   GIT_TAG "v1.3.3"
-   PREFIX "${CMAKE_BINARY_DIR}/open62541_src"
-   CMAKE_ARGS
-   "-DCMAKE_PROJECT_NAME=${PROJECT_NAME}"
-   "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/open62541_install"
-   "-DUA_ENABLE_AMALGAMATION=Off"
-   "-DBUILD_SHARED_LIBS=ON"
-   "-DUA_ENABLE_METHODCALLS=ON"
-   "-DUA_ENABLE_NODEMANAGEMENT=ON"
-   "-DUA_ENABLE_SUBSCRIPTIONS=ON"
-   "-DUA_LOGLEVEL=300"
-   "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-   "-DPROJECT_BUILD_VERSION=$ENV{PROJECT_BUILDVERSION}"
-   "-DPROJECT_REVISION=${${PROJECT_NAME}_REVISION}"
-   "-DUA_ENABLE_ENCRYPTION=MBEDTLS"
-   "-DUA_ENABLE_HISTORIZING=ON"
-  #"-DUA_ENABLE_GENERATE_NAMESPACE0=On"
-  #"-DUA_ENABLE_ENABLE_MULTITHREADING=ON"
-   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
-                           ${PROJECT_SOURCE_DIR}/FixForZeroSamplingInterval.patch
-                           ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
-                           ${PROJECT_SOURCE_DIR}/RemovePythonDependency.patch
-   UPDATE_COMMAND bash -c ${UPDATESTRING}
-  )
+ExternalProject_Add(external-open62541
+  GIT_REPOSITORY "https://github.com/open62541/open62541.git"
+  GIT_TAG "v1.3.3"
+  PREFIX "${CMAKE_BINARY_DIR}/open62541_src"
+  CMAKE_ARGS
+  "-DCMAKE_PROJECT_NAME=${PROJECT_NAME}"
+  "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/open62541_install"
+  "-DUA_ENABLE_AMALGAMATION=Off"
+  "-DBUILD_SHARED_LIBS=ON"
+  "-DUA_ENABLE_METHODCALLS=ON"
+  "-DUA_ENABLE_NODEMANAGEMENT=ON"
+  "-DUA_ENABLE_SUBSCRIPTIONS=ON"
+  "-DUA_LOGLEVEL=300"
+  "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+  "-DPROJECT_BUILD_VERSION=$ENV{PROJECT_BUILDVERSION}"
+  "-DPROJECT_REVISION=${${PROJECT_NAME}_REVISION}"
+  "-DUA_ENABLE_ENCRYPTION=MBEDTLS"
+  "-DUA_ENABLE_HISTORIZING=ON"
+ #"-DUA_ENABLE_GENERATE_NAMESPACE0=On"
+ #"-DUA_ENABLE_ENABLE_MULTITHREADING=ON"
+  PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
+                          ${PROJECT_SOURCE_DIR}/FixForZeroSamplingInterval.patch
+                          ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
+                          ${PROJECT_SOURCE_DIR}/RemovePythonDependency.patch
+  UPDATE_COMMAND bash -c ${UPDATESTRING}
+)
+
+#add_custom_command(fix_cmake_config 
+#  DEPENDS external-open62541
+#  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh
+#  )
+add_custom_target(fix_cmake_config ALL 
+  DEPENDS external-open62541
+  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541  ${CMAKE_INSTALL_LIBDIR}
+)
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/include/ DESTINATION include)
 # this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
