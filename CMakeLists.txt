@@ -75,7 +75,8 @@ else()
 endif()
 
 
-install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/share/ DESTINATION share )
+install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/share/ DESTINATION share 
+        PATTERN "open62541" EXCLUDE)
 configure_file(${PROJECT_SOURCE_DIR}/open62541-config.in "${PROJECT_BINARY_DIR}/open62541-config" @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/open62541-config DESTINATION bin COMPONENT dev)
 
