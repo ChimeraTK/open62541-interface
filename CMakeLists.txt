@@ -5,7 +5,7 @@ SET(${PROJECT_NAME}_MAJOR_VERSION 1)
 SET(${PROJECT_NAME}_MINOR_VERSION 3)
 SET(${PROJECT_NAME}_PATCH_VERSION 3)
 include(${CMAKE_SOURCE_DIR}/cmake/set_version_numbers.cmake)
-set(${PROJECT_NAME}_REVISION 8)
+set(${PROJECT_NAME}_REVISION 9)
 message(STATUS "Version number: ${${PROJECT_NAME}_FULL_LIBRARY_VERSION}")
 
 if(${CMAKE_VERSION} VERSION_LESS "3.18.0") 
@@ -27,7 +27,7 @@ ExternalProject_Add(external-open62541
   PREFIX "${CMAKE_BINARY_DIR}/open62541_src"
   CMAKE_ARGS
   "-DCMAKE_PROJECT_NAME=${PROJECT_NAME}"
-  "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/open62541_install"
+  "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
   "-DUA_ENABLE_AMALGAMATION=Off"
   "-DBUILD_SHARED_LIBS=ON"
   "-DUA_ENABLE_METHODCALLS=ON"
@@ -46,36 +46,12 @@ ExternalProject_Add(external-open62541
                           ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
                           ${PROJECT_SOURCE_DIR}/RemovePythonDependency.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
+  INSTALL_COMMAND make  DESTDIR=${CMAKE_BINARY_DIR}/open62541_install install
 )
 
-# this defines architecture-dependent ${CMAKE_INSTALL_LIBDIR}
-include(GNUInstallDirs)
-add_custom_target(fix_cmake_config ALL 
-  DEPENDS external-open62541
-  COMMAND  ${CMAKE_CURRENT_SOURCE_DIR}/fix_cmake_config.sh ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541 ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/include/ DESTINATION include)
-
-
-if(NOT (${CMAKE_INSTALL_LIBDIR} STREQUAL "lib") )
-  message(STATUS "Installing cmake configuration from open62541-interface project.")
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} 
-          PATTERN "cmake" EXCLUDE)
-  # source lib dir is also architecture-dependent, sometimes called lib64
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} 
-          PATTERN "cmake" EXCLUDE)
-  install(DIRECTORY ${CMAKE_SOURCE_DIR}/cmake_config/ DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/open62541/)
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/cmake/open62541/ DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/open62541/ 
-          FILES_MATCHING PATTERN "open62541Targets-*")    
-else()
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-  # source lib dir is also architecture-dependent, sometimes called lib64
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/lib64/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-endif()
-
-
-install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/share/ DESTINATION share 
+install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/include/ DESTINATION include)
+install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/share/ DESTINATION share 
         PATTERN "open62541" EXCLUDE)
 configure_file(${PROJECT_SOURCE_DIR}/open62541-config.in "${PROJECT_BINARY_DIR}/open62541-config" @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/open62541-config DESTINATION bin COMPONENT dev)
