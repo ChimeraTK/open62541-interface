@@ -18,9 +18,6 @@ endif()
 include(cmake/set_default_build_to_release.cmake)
 
 include(ExternalProject)
-# setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
-# is not required. 
-# However in the debian packaging scripts installing the external project to /usr/ is not allowed - permission denied...
 ExternalProject_Add(external-open62541
   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
   GIT_TAG "v1.3.3"
@@ -46,19 +43,28 @@ ExternalProject_Add(external-open62541
                           ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
                           ${PROJECT_SOURCE_DIR}/RemovePythonDependency.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
+  # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
+  # is not required. 
+  # However in the debian packaging scripts installing the external project to /usr/ is not allowed - permission denied...
+  # In addition this allows to strip some files that we don't want to install with the interface here.
   INSTALL_COMMAND make  DESTDIR=${CMAKE_BINARY_DIR}/open62541_install install
 )
 
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/include/ DESTINATION include)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/ OPTIONAL DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+# Do only install package config. Nodesets and python tools are not installed.
 install(DIRECTORY ${CMAKE_BINARY_DIR}/open62541_install/${CMAKE_INSTALL_PREFIX}/share/ DESTINATION share 
         PATTERN "open62541" EXCLUDE)
 configure_file(${PROJECT_SOURCE_DIR}/open62541-config.in "${PROJECT_BINARY_DIR}/open62541-config" @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/open62541-config DESTINATION bin COMPONENT dev)
 
-##########################
-# Packaging              #
-##########################
+######################################################################
+# Packaging              
+# 
+# Allows to use CPack to build a debian package.
+# However this is not used to build the debian package in general.
+# In general DebianPackagingScipts are used.
+######################################################################
 # invoke via `make package`
 set(open62541_extern ${CMAKE_BINARY_DIR}/open62541_src/src/external-open62541-build "open62541" "ALL" "/")
 set(CPACK_INSTALL_CMAKE_PROJECTS ${open62541_extern})
