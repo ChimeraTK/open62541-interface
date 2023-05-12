@@ -16,8 +16,9 @@ else()
 endif()
 
 include(cmake/set_default_build_to_release.cmake)
-
+include(GNUInstallDirs)
 include(ExternalProject)
+
 ExternalProject_Add(external-open62541
   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
   GIT_TAG "v1.3.3"
