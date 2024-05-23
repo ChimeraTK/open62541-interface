@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 8b3c2cebc..33165a73e 100644
+index 59b235696..576e41fc1 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -697,6 +697,15 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+@@ -720,6 +720,15 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
              set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-z,norelro -Wl,--hash-style=gnu -Wl,--build-id=none")
          endif()
      endif()
@@ -18,21 +18,21 @@ index 8b3c2cebc..33165a73e 100644
  endif()
  
  if(APPLE)
-@@ -1395,7 +1404,7 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
-     target_compile_definitions(open62541 PRIVATE -DMDNSD_DYNAMIC_LINKING_EXPORT)
+@@ -1435,7 +1444,7 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
+     target_compile_definitions(${OPEN62541-LIB} PRIVATE -DMDNSD_DYNAMIC_LINKING_EXPORT)
  endif()
  # Generate properly versioned shared library links on Linux
--SET_TARGET_PROPERTIES(open62541 PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}.${OPEN62541_VER_PATCH}")
-+SET_TARGET_PROPERTIES(open62541 PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}.${OPEN62541_VER_PATCH}-${PROJECT_REVISION}")
+-SET_TARGET_PROPERTIES(${OPEN62541-LIB} PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}.${OPEN62541_VER_PATCH}")
++SET_TARGET_PROPERTIES(${OPEN62541-LIB} PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}.${OPEN62541_VER_PATCH}-${PROJECT_REVISION}")
  
  # DLL requires linking to dependencies
- target_link_libraries(open62541 ${open62541_LIBRARIES})
-@@ -1494,7 +1503,7 @@ export(TARGETS open62541 NAMESPACE open62541::
- # Create open62541Targets.cmake
+ target_link_libraries(${OPEN62541-LIB} ${open62541_LIBRARIES})
+@@ -1552,7 +1561,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
+ 
  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
      install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"
 -            DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 +            DESTINATION share/pkgconfig)
  endif()
  
- # Recreate the include folder structure from the source also in /usr/lib/include/open62541
+ install(DIRECTORY "tools/certs" "tools/nodeset_compiler"
