@@ -1,0 +1,25 @@
+From 9a5f34e070c888bae5da6aced78735b7988040f7 Mon Sep 17 00:00:00 2001
+From: Jens Georg <jens.georg@desy.de>
+Date: Fri, 24 May 2024 14:56:15 +0200
+Subject: [PATCH] Make MBEDTLS private dependency
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8b3c2cebc..d946a0275 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -530,7 +530,7 @@ if(UA_ENABLE_ENCRYPTION_MBEDTLS OR UA_ENABLE_PUBSUB_ENCRYPTION)
+     # that is not possible, manually compile mbedTLS and set the cmake variables
+     # defined in /tools/cmake/FindMbedTLS.cmake.
+     find_package(MbedTLS REQUIRED)
+-    list(APPEND open62541_LIBRARIES ${MBEDTLS_LIBRARIES})
++    list(APPEND open62541_LIBRARIES PRIVATE ${MBEDTLS_LIBRARIES})
+ endif()
+ 
+ if(UA_ENABLE_TPM2_SECURITY)
+-- 
+2.43.2
+
