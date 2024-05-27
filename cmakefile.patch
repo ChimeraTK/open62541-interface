@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 59b235696..576e41fc1 100644
+index 59b235696..921055ff4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -720,6 +720,15 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
@@ -18,7 +18,7 @@ index 59b235696..576e41fc1 100644
  endif()
  
  if(APPLE)
-@@ -1435,7 +1444,7 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
+@@ -1435,11 +1444,13 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
      target_compile_definitions(${OPEN62541-LIB} PRIVATE -DMDNSD_DYNAMIC_LINKING_EXPORT)
  endif()
  # Generate properly versioned shared library links on Linux
@@ -26,8 +26,16 @@ index 59b235696..576e41fc1 100644
 +SET_TARGET_PROPERTIES(${OPEN62541-LIB} PROPERTIES SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}" VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}.${OPEN62541_VER_PATCH}-${PROJECT_REVISION}")
  
  # DLL requires linking to dependencies
- target_link_libraries(${OPEN62541-LIB} ${open62541_LIBRARIES})
-@@ -1552,7 +1561,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
+-target_link_libraries(${OPEN62541-LIB} ${open62541_LIBRARIES})
+-
++message(STATUS "LIB: ${OPEN62541-LIB}")
++message(STATUS "LIB: ${open62541_LIBRARIES}")
++target_link_libraries(${OPEN62541-LIB} PRIVATE ${open62541_LIBRARIES})
++#target_link_libraries(${OPEN62541-LIB} PRIVATE ${MBEDTLS_LIBRARIES})
+ ##########################
+ # Build Selected Targets #
+ ##########################
+@@ -1552,7 +1563,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
  
  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
      install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"

@@ -40,6 +40,7 @@ ExternalProject_Add(external-open62541
  #"-DUA_ENABLE_GENERATE_NAMESPACE0=On"
  #"-DUA_ENABLE_ENABLE_MULTITHREADING=ON"
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
+                          ${PROJECT_SOURCE_DIR}/open62541Config.patch
                           ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
