@@ -1,5 +1,5 @@
 diff --git a/plugins/historydata/ua_history_data_backend_memory.c b/plugins/historydata/ua_history_data_backend_memory.c
-index dbd6d4169..50a090224 100644
+index dbd6d4169..13149039e 100644
 --- a/plugins/historydata/ua_history_data_backend_memory.c
 +++ b/plugins/historydata/ua_history_data_backend_memory.c
 @@ -208,9 +208,17 @@ serverSetHistoryData_backend_memory(UA_Server *server,
@@ -14,6 +14,29 @@ index dbd6d4169..50a090224 100644
 +        }
      } else if (value->hasServerTimestamp) {
 -        timestamp = value->serverTimestamp;
++        if (value->serverTimestamp == 116444736000000000){
++            return UA_STATUSCODE_GOOD;
++        } else {
++            timestamp = value->sourceTimestamp;
++        }
+     } else {
+         timestamp = UA_DateTime_now();
+     }
+@@ -673,10 +681,18 @@ serverSetHistoryData_backend_memory_Circular(UA_Server *server,
+         item->lastInserted = 0;
+     }
+     UA_DateTime timestamp = 0;
+-    if(value->hasSourceTimestamp) {
+-        timestamp = value->sourceTimestamp;
+-    } else if(value->hasServerTimestamp) {
+-        timestamp = value->serverTimestamp;
++    if (value->hasSourceTimestamp) {
++        if (value->sourceTimestamp == 116444736000000000){
++            return UA_STATUSCODE_GOOD;
++        } else {
++            timestamp = value->sourceTimestamp;
++        }
++    } else if (value->hasServerTimestamp) {
 +        if (value->serverTimestamp == 116444736000000000){
 +            return UA_STATUSCODE_GOOD;
 +        } else {
