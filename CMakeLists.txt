@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.5)
 
 SET(${PROJECT_NAME}_MAJOR_VERSION 1)
 SET(${PROJECT_NAME}_MINOR_VERSION 4)
-SET(${PROJECT_NAME}_PATCH_VERSION 1)
+SET(${PROJECT_NAME}_PATCH_VERSION 3)
 include(${CMAKE_SOURCE_DIR}/cmake/set_version_numbers.cmake)
-set(${PROJECT_NAME}_REVISION 2)
+set(${PROJECT_NAME}_REVISION 0)
 message(STATUS "Version number: ${${PROJECT_NAME}_FULL_LIBRARY_VERSION}")
 
 if(${CMAKE_VERSION} VERSION_LESS "3.18.0") 
@@ -21,7 +21,7 @@ include(ExternalProject)
 
 ExternalProject_Add(external-open62541
   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
-  GIT_TAG "v1.4.1"
+  GIT_TAG "v1.4.3"
   PREFIX "${CMAKE_BINARY_DIR}/open62541_src"
   CMAKE_ARGS
   "-DCMAKE_PROJECT_NAME=${PROJECT_NAME}"
@@ -38,8 +38,25 @@ ExternalProject_Add(external-open62541
   "-DUA_ENABLE_ENCRYPTION=MBEDTLS"
   "-DUA_ENABLE_HISTORIZING=ON"
   "-DUA_NAMESPACE_ZERO=FULL"
- #"-DUA_ENABLE_GENERATE_NAMESPACE0=On"
- #"-DUA_ENABLE_ENABLE_MULTITHREADING=ON"
+  "-DUA_ENABLE_PUBSUB=ON"
+  "-DUA_ENABLE_PUBSUB_MONITORING=ON"
+  "-DUA_ENABLE_ALLOW_REUSEADDR=ON"
+ # The flag above allows to restart a server fast. If not used
+ # it takes some time until the kernel releases the used port/address.
+ # This flag is used by open62541 for testing only. The OPC UA 
+ # standard requires exclusive address usage -> UA_ENABLE_ALLOW_REUSEADDR=OFF
+ # which is the default setting of the stack.
+ 
+ # Patches:
+ # 1. cmakefile.patch:
+ #    Set version number and install paths accoroding to ChimeraTK style. Add
+ #    Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
+ # 2. open62541Config.patch
+ #    Do not require tools to installed, since we skip installing them.
+ # 3. SkipFirstHistoryEntry.patch
+ #    This is to avoid filling unset initial values of ChimeraTK to the history.
+ #    They have value 0 and a time stamp of 0s since EPOCH
+ #    corresponding to 116444736000000000 in open62541        
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
                           ${PROJECT_SOURCE_DIR}/open62541Config.patch
                           ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
