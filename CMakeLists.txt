@@ -53,13 +53,8 @@ ExternalProject_Add(external-open62541
  #    Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
  # 2. open62541Config.patch
  #    Do not require tools to installed, since we skip installing them.
- # 3. SkipFirstHistoryEntry.patch
- #    This is to avoid filling unset initial values of ChimeraTK to the history.
- #    They have value 0 and a time stamp of 0s since EPOCH
- #    corresponding to 116444736000000000 in open62541        
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
                           ${PROJECT_SOURCE_DIR}/open62541Config.patch
-                          ${PROJECT_SOURCE_DIR}/SkipFirstHistoryEntry.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
   # is not required. 
