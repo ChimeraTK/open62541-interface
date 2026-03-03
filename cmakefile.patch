@@ -1,8 +1,8 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index aa3230292..98b221d4e 100644
+index e9baae1ec..046f9934f 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -704,6 +704,15 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+@@ -746,6 +746,15 @@ if((CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang") AND
              set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-z,norelro -Wl,--hash-style=gnu -Wl,--build-id=none")
          endif()
      endif()
@@ -18,21 +18,18 @@ index aa3230292..98b221d4e 100644
  endif()
  
  if(APPLE)
-@@ -1417,10 +1426,9 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
- endif()
- 
- # Generate properly versioned shared library links on Linux
--SET_TARGET_PROPERTIES(open62541 PROPERTIES
+@@ -1473,8 +1482,8 @@ endif()
+ # When building packages, include the source in the library name to enable parallel
+ # installation of multiple major versions.
+ SET_TARGET_PROPERTIES(open62541 PROPERTIES
 -                      SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}"
 -                      VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}.${OPEN62541_VER_PATCH}")
--
-+SET_TARGET_PROPERTIES(open62541 PROPERTIES
 +                      SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}"
 +                      VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}.${OPEN62541_VER_PATCH}-${PROJECT_REVISION}")
+ 
  # DLL requires linking to dependencies
  target_link_libraries(open62541 PUBLIC ${open62541_PUBLIC_LIBRARIES})
- target_link_libraries(open62541 PRIVATE ${open62541_LIBRARIES})
-@@ -1543,7 +1551,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
+@@ -1587,7 +1596,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
  
  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
      install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"
