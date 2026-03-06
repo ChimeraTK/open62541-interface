@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index e9baae1ec..046f9934f 100644
+index e9baae1ec..daa6411e3 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -746,6 +746,15 @@ if((CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang") AND
@@ -29,7 +29,18 @@ index e9baae1ec..046f9934f 100644
  
  # DLL requires linking to dependencies
  target_link_libraries(open62541 PUBLIC ${open62541_PUBLIC_LIBRARIES})
-@@ -1587,7 +1596,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
+@@ -1541,9 +1550,7 @@ include(CMakePackageConfigHelpers)
+ set(cmake_configfile_install ${CMAKE_INSTALL_LIBDIR}/cmake/open62541)
+ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake/open62541Config.cmake.in"
+                               "${CMAKE_CURRENT_BINARY_DIR}/open62541Config.cmake"
+-                              INSTALL_DESTINATION "${cmake_configfile_install}"
+-                              PATH_VARS open62541_install_tools_dir
+-                                        open62541_install_schema_dir)
++                              INSTALL_DESTINATION "${cmake_configfile_install}")
+ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/open62541Config.cmake"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake/open62541Macros.cmake"
+         DESTINATION "${cmake_configfile_install}")
+@@ -1587,7 +1594,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
  
  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
      install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"

@@ -45,6 +45,8 @@ ExternalProject_Add(external-open62541
  #    Set version number and install paths accoroding to ChimeraTK style. Add
  #    Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
+                          ${PROJECT_SOURCE_DIR}/open62541Config.patch
+#                          ${PROJECT_SOURCE_DIR}/atomic.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
   # is not required. 
