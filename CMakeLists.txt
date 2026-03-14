@@ -42,11 +42,16 @@ ExternalProject_Add(external-open62541
 
  # Patches:
  # 1. cmakefile.patch:
- #    Set version number and install paths accoroding to ChimeraTK style. Add
- #    Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
+ #    * Set version number and install paths accoroding to ChimeraTK style.
+ #    * Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
+ #    * Do not use compiler flag -ftls-model=initial-exec in order to load 
+ #      OPC UA backend in QtHardmon without using LD_PRELOAD
+ # 2. open62541Config.patch:
+ #    * Do not check Tools, Schema and Nodesets path, because they are not exported
+ #      in the interface.
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
                           ${PROJECT_SOURCE_DIR}/open62541Config.patch
-#                          ${PROJECT_SOURCE_DIR}/atomic.patch
+                          ${PROJECT_SOURCE_DIR}/atomic.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
   # is not required. 
