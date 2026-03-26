@@ -2,8 +2,8 @@ project(open62541)
 cmake_minimum_required(VERSION 3.5)
 
 SET(${PROJECT_NAME}_MAJOR_VERSION 1)
-SET(${PROJECT_NAME}_MINOR_VERSION 4)
-SET(${PROJECT_NAME}_PATCH_VERSION 6)
+SET(${PROJECT_NAME}_MINOR_VERSION 5)
+SET(${PROJECT_NAME}_PATCH_VERSION 2)
 include(${CMAKE_SOURCE_DIR}/cmake/set_version_numbers.cmake)
 set(${PROJECT_NAME}_REVISION 0)
 message(STATUS "Version number: ${${PROJECT_NAME}_FULL_LIBRARY_VERSION}")
@@ -21,7 +21,7 @@ include(ExternalProject)
 
 ExternalProject_Add(external-open62541
   GIT_REPOSITORY "https://github.com/open62541/open62541.git"
-  GIT_TAG "v1.4.6"
+  GIT_TAG "v1.5.2"
   PREFIX "${CMAKE_BINARY_DIR}/open62541_src"
   CMAKE_ARGS
   "-DCMAKE_PROJECT_NAME=${PROJECT_NAME}"
@@ -39,22 +39,19 @@ ExternalProject_Add(external-open62541
   "-DUA_ENABLE_HISTORIZING=ON"
   "-DUA_NAMESPACE_ZERO=FULL"
   "-DUA_ENABLE_PUBSUB=ON"
-  "-DUA_ENABLE_PUBSUB_MONITORING=ON"
-  "-DUA_ENABLE_ALLOW_REUSEADDR=ON"
- # The flag above allows to restart a server fast. If not used
- # it takes some time until the kernel releases the used port/address.
- # This flag is used by open62541 for testing only. The OPC UA 
- # standard requires exclusive address usage -> UA_ENABLE_ALLOW_REUSEADDR=OFF
- # which is the default setting of the stack.
- 
+
  # Patches:
  # 1. cmakefile.patch:
- #    Set version number and install paths accoroding to ChimeraTK style. Add
- #    Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
- # 2. open62541Config.patch
- #    Do not require tools to installed, since we skip installing them.
+ #    * Set version number and install paths accoroding to ChimeraTK style.
+ #    * Add ChimeraTK build targets RelWithDebInfo, ;asan, tsan
+ #    * Do not use compiler flag -ftls-model=initial-exec in order to load 
+ #      OPC UA backend in QtHardmon without using LD_PRELOAD
+ # 2. open62541Config.patch:
+ #    * Do not check Tools, Schema and Nodesets path, because they are not exported
+ #      in the interface.
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
                           ${PROJECT_SOURCE_DIR}/open62541Config.patch
+                          ${PROJECT_SOURCE_DIR}/atomic.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
   # is not required. 

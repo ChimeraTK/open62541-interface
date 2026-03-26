@@ -1,8 +1,19 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index aa3230292..98b221d4e 100644
+index e9baae1ec..23b0a5549 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -704,6 +704,15 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+@@ -669,7 +669,9 @@ if((CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang") AND
+     # Threading support
+     if(UA_MULTITHREADING GREATER_EQUAL 100 AND NOT WIN32)
+         check_add_cc_flag("-pthread")
+-        check_add_cc_flag("-ftls-model=initial-exec") # Enable thread-local variables in the .so shared object
++#        Disbled in order to being able to load the DeviceAccess-OpcUaBackend with QtHardmon without using LD_PRELOAD
++#        See also: https://stackoverflow.com/questions/79558654/cannot-allocate-memory-in-static-tls-block-when-loading-plugin
++#        check_add_cc_flag("-ftls-model=initial-exec") # Enable thread-local variables in the .so shared object
+     endif()
+ 
+     # Force 32bit build
+@@ -746,6 +748,15 @@ if((CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang") AND
              set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-z,norelro -Wl,--hash-style=gnu -Wl,--build-id=none")
          endif()
      endif()
@@ -18,21 +29,29 @@ index aa3230292..98b221d4e 100644
  endif()
  
  if(APPLE)
-@@ -1417,10 +1426,9 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
- endif()
- 
- # Generate properly versioned shared library links on Linux
--SET_TARGET_PROPERTIES(open62541 PROPERTIES
+@@ -1473,8 +1484,8 @@ endif()
+ # When building packages, include the source in the library name to enable parallel
+ # installation of multiple major versions.
+ SET_TARGET_PROPERTIES(open62541 PROPERTIES
 -                      SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}"
 -                      VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}.${OPEN62541_VER_PATCH}")
--
-+SET_TARGET_PROPERTIES(open62541 PROPERTIES
 +                      SOVERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}"
 +                      VERSION "${OPEN62541_VER_MAJOR}.${OPEN62541_VER_MINOR}${PROJECT_BUILD_VERSION}.${OPEN62541_VER_PATCH}-${PROJECT_REVISION}")
+ 
  # DLL requires linking to dependencies
  target_link_libraries(open62541 PUBLIC ${open62541_PUBLIC_LIBRARIES})
- target_link_libraries(open62541 PRIVATE ${open62541_LIBRARIES})
-@@ -1543,7 +1551,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
+@@ -1541,9 +1552,7 @@ include(CMakePackageConfigHelpers)
+ set(cmake_configfile_install ${CMAKE_INSTALL_LIBDIR}/cmake/open62541)
+ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake/open62541Config.cmake.in"
+                               "${CMAKE_CURRENT_BINARY_DIR}/open62541Config.cmake"
+-                              INSTALL_DESTINATION "${cmake_configfile_install}"
+-                              PATH_VARS open62541_install_tools_dir
+-                                        open62541_install_schema_dir)
++                              INSTALL_DESTINATION "${cmake_configfile_install}")
+ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/open62541Config.cmake"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake/open62541Macros.cmake"
+         DESTINATION "${cmake_configfile_install}")
+@@ -1587,7 +1596,7 @@ configure_file(tools/open62541.pc.in ${PROJECT_BINARY_DIR}/src_generated/open625
  
  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
      install(FILES "${PROJECT_BINARY_DIR}/src_generated/open62541.pc"
