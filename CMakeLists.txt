@@ -39,6 +39,7 @@ ExternalProject_Add(external-open62541
   "-DUA_ENABLE_HISTORIZING=ON"
   "-DUA_NAMESPACE_ZERO=FULL"
   "-DUA_ENABLE_PUBSUB=ON"
+  "-DUA_ENABLE_DISCOVERY_MULTICAST=ON"
 
  # Patches:
  # 1. cmakefile.patch:
