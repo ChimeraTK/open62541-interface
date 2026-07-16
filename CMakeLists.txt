@@ -50,9 +50,14 @@ ExternalProject_Add(external-open62541
  # 2. open62541Config.patch:
  #    * Do not check Tools, Schema and Nodesets path, because they are not exported
  #      in the interface.
+ # 3. atomic.patch:
+ #    * Rename definition of `atomic_uintptr_t` to `atomic_uintptr_opcua_t` to avoid name clash with BOOST definition of `atomic_uintptr_t`.
+ # 4. history.patch:
+ #   * Fix history plugin to respect requested time range and to return the correct number of values.
   PATCH_COMMAND git apply ${PROJECT_SOURCE_DIR}/cmakefile.patch
                           ${PROJECT_SOURCE_DIR}/open62541Config.patch
                           ${PROJECT_SOURCE_DIR}/atomic.patch
+                          ${PROJECT_SOURCE_DIR}/history.patch
   UPDATE_COMMAND bash -c ${UPDATESTRING}
   # setting -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} works in principle and the temporary install to ${CMAKE_BINARY_DIR}/open62541_install
   # is not required. 

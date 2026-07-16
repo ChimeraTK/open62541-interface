@@ -1,0 +1,496 @@
+diff --git a/plugins/historydata/ua_history_data_backend_memory.c b/plugins/historydata/ua_history_data_backend_memory.c
+index dbd6d4169..ecf8967aa 100644
+--- a/plugins/historydata/ua_history_data_backend_memory.c
++++ b/plugins/historydata/ua_history_data_backend_memory.c
+@@ -9,6 +9,7 @@
+ #include <open62541/plugin/historydata/history_data_backend_memory.h>
+ 
+ #include <limits.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ typedef struct {
+@@ -656,6 +657,136 @@ getNodeIdStoreContextItem_backend_memory_Circular(UA_MemoryStoreContext *context
+     return getNewNodeIdContext_backend_memory_Circular(context, server, nodeId);
+ }
+ 
++typedef struct {
++    UA_DataValueMemoryStoreItem *item;
++    size_t originalIndex;
++} UA_CircularHistorySnapshotItem;
++
++static int
++compareCircularHistorySnapshotItem(const void *left, const void *right) {
++    const UA_CircularHistorySnapshotItem *lhs =
++        (const UA_CircularHistorySnapshotItem *)left;
++    const UA_CircularHistorySnapshotItem *rhs =
++        (const UA_CircularHistorySnapshotItem *)right;
++
++    if(lhs->item->timestamp < rhs->item->timestamp)
++        return -1;
++    if(lhs->item->timestamp > rhs->item->timestamp)
++        return 1;
++    if(lhs->originalIndex < rhs->originalIndex)
++        return -1;
++    if(lhs->originalIndex > rhs->originalIndex)
++        return 1;
++    return 0;
++}
++
++static UA_CircularHistorySnapshotItem *
++collectCircularHistorySnapshot(const UA_NodeIdStoreContextItem_backend_memory *item,
++                               size_t *snapshotSize) {
++    *snapshotSize = 0;
++    if(item == NULL || item->storeEnd == 0)
++        return NULL;
++
++    UA_CircularHistorySnapshotItem *snapshot =
++        (UA_CircularHistorySnapshotItem *)UA_malloc(
++            item->storeEnd * sizeof(UA_CircularHistorySnapshotItem));
++    if(snapshot == NULL)
++        return NULL;
++
++    size_t count = 0;
++    for(size_t i = 0; i < item->storeEnd; ++i) {
++        if(item->dataStore[i] == NULL)
++            continue;
++        snapshot[count].item = item->dataStore[i];
++        snapshot[count].originalIndex = i;
++        ++count;
++    }
++
++    qsort(snapshot, count, sizeof(UA_CircularHistorySnapshotItem),
++          compareCircularHistorySnapshotItem);
++    *snapshotSize = count;
++    return snapshot;
++}
++
++static void
++freeCircularHistorySnapshot(UA_CircularHistorySnapshotItem *snapshot) {
++    UA_free(snapshot);
++}
++
++static UA_Boolean
++timestampInCircularHistoryRange(UA_DateTime timestamp, UA_DateTime start, UA_DateTime end,
++                                UA_Boolean reverse) {
++    if(start == end)
++        return timestamp == start;
++    if(start == LLONG_MIN && end == LLONG_MIN)
++        return true;
++    if(start == LLONG_MIN)
++        return timestamp <= end;
++    if(end == LLONG_MIN)
++        return timestamp >= start;
++    if(!reverse) {
++        return timestamp >= start && timestamp < end;
++    }
++    return timestamp > end && timestamp <= start;
++}
++
++static size_t
++countCircularHistoryMatches(const UA_CircularHistorySnapshotItem *snapshot,
++                            size_t snapshotSize, UA_DateTime start, UA_DateTime end,
++                            UA_Boolean reverse) {
++    size_t matchCount = 0;
++    for(size_t i = 0; i < snapshotSize; ++i) {
++        if(timestampInCircularHistoryRange(snapshot[i].item->timestamp, start, end,
++                                           reverse))
++            ++matchCount;
++    }
++    return matchCount;
++}
++
++static size_t
++copyCircularHistoryMatches(const UA_CircularHistorySnapshotItem *snapshot,
++                           size_t snapshotSize, UA_DateTime start, UA_DateTime end,
++                           UA_Boolean reverse, size_t skip, size_t maxValues,
++                           UA_NumericRange range, UA_DataValue *outValues) {
++    size_t counter = 0;
++    size_t skippedValues = 0;
++
++    if(reverse) {
++        for(size_t i = snapshotSize; i-- > 0 && counter < maxValues;) {
++            if(!timestampInCircularHistoryRange(snapshot[i].item->timestamp, start, end,
++                                                reverse))
++                continue;
++            if(skippedValues++ < skip)
++                continue;
++            if(range.dimensionsSize > 0) {
++                UA_DataValue_backend_copyRange(&snapshot[i].item->value,
++                                               &outValues[counter], range);
++            } else {
++                UA_DataValue_copy(&snapshot[i].item->value, &outValues[counter]);
++            }
++            ++counter;
++        }
++        return counter;
++    }
++
++    for(size_t i = 0; i < snapshotSize && counter < maxValues; ++i) {
++        if(!timestampInCircularHistoryRange(snapshot[i].item->timestamp, start, end,
++                                            reverse))
++            continue;
++        if(skippedValues++ < skip)
++            continue;
++        if(range.dimensionsSize > 0) {
++            UA_DataValue_backend_copyRange(&snapshot[i].item->value, &outValues[counter],
++                                           range);
++        } else {
++            UA_DataValue_copy(&snapshot[i].item->value, &outValues[counter]);
++        }
++        ++counter;
++    }
++
++    return counter;
++}
++
+ static UA_StatusCode
+ serverSetHistoryData_backend_memory_Circular(UA_Server *server,
+                                              void *context,
+@@ -688,9 +819,6 @@ serverSetHistoryData_backend_memory_Circular(UA_Server *server,
+         newItem->value.hasServerTimestamp = true;
+     }
+ 
+-
+-    /* This implementation does NOT sort values by timestamp */
+-
+     if(item->dataStore[item->lastInserted] != NULL) {
+         UA_DataValueMemoryStoreItem_clear(item->dataStore[item->lastInserted]);
+         UA_free(item->dataStore[item->lastInserted]);
+@@ -705,36 +833,6 @@ serverSetHistoryData_backend_memory_Circular(UA_Server *server,
+     return UA_STATUSCODE_GOOD;
+ }
+ 
+-static size_t
+-getResultSize_service_Circular(const UA_HistoryDataBackend *backend, UA_Server *server,
+-                               const UA_NodeId *sessionId, void *sessionContext,
+-                               const UA_NodeId *nodeId, UA_DateTime start,
+-                               UA_DateTime end, UA_UInt32 numValuesPerNode,
+-                               UA_Boolean returnBounds, size_t *startIndex,
+-                               size_t *endIndex, UA_Boolean *addFirst,
+-                               UA_Boolean *addLast, UA_Boolean *reverse) {
+-    *startIndex = 0;
+-    *endIndex = backend->lastIndex(server, backend->context, sessionId, sessionContext, nodeId);
+-    *addFirst = false;
+-    *addLast = false;
+-    if(end == LLONG_MIN) {
+-        *reverse = false;
+-    } else if(start == LLONG_MIN) {
+-        *reverse = true;
+-    } else {
+-        *reverse = end < start;
+-    }
+-
+-    size_t size = 0;
+-    const UA_NodeIdStoreContextItem_backend_memory *item = getNodeIdStoreContextItem_backend_memory_Circular((UA_MemoryStoreContext *)backend->context, server, nodeId);
+-    if(item == NULL) {
+-        size = 0;
+-    } else {
+-        size = item->storeEnd;
+-    }
+-    return size;
+-}
+-
+ static UA_StatusCode
+ getHistoryData_service_Circular(UA_Server *server,
+                                 const UA_NodeId *sessionId,
+@@ -752,126 +850,87 @@ getHistoryData_service_Circular(UA_Server *server,
+                                 const UA_ByteString *continuationPoint,
+                                 UA_ByteString *outContinuationPoint,
+                                 UA_HistoryData *historyData) {
+-    size_t *resultSize = &historyData->dataValuesSize;
+-    UA_DataValue **result = &historyData->dataValues;
+     size_t skip = 0;
+-    UA_ByteString backendContinuationPoint;
+-    UA_ByteString_init(&backendContinuationPoint);
+     if(continuationPoint->length > 0) {
+         if(continuationPoint->length < sizeof(size_t))
+             return UA_STATUSCODE_BADCONTINUATIONPOINTINVALID;
+         skip = *((size_t *)(continuationPoint->data));
+-        backendContinuationPoint.length = continuationPoint->length - sizeof(size_t);
+-        backendContinuationPoint.data = continuationPoint->data + sizeof(size_t);
+-    }
+-    size_t storeEnd = backend->getEnd(server, backend->context, sessionId, sessionContext, nodeId);
+-    size_t startIndex;
+-    size_t endIndex;
+-    UA_Boolean addFirst;
+-    UA_Boolean addLast;
+-    UA_Boolean reverse;
+-    size_t _resultSize = getResultSize_service_Circular(backend,
+-                                                        server,
+-                                                        sessionId,
+-                                                        sessionContext,
+-                                                        nodeId,
+-                                                        start,
+-                                                        end,
+-                                                        numValuesPerNode == 0 ? 0 : numValuesPerNode + (UA_UInt32)skip,
+-                                                        returnBounds,
+-                                                        &startIndex,
+-                                                        &endIndex,
+-                                                        &addFirst,
+-                                                        &addLast,
+-                                                        &reverse);
+-    *resultSize = _resultSize - skip;
+-    if(*resultSize > maxSize) {
+-        *resultSize = maxSize;
+-    }
+-    UA_DataValue *outResult = (UA_DataValue *)UA_Array_new(*resultSize, &UA_TYPES[UA_TYPES_DATAVALUE]);
+-    if(!outResult) {
+-        *resultSize = 0;
++    }
++    const UA_NodeIdStoreContextItem_backend_memory *item =
++        getNodeIdStoreContextItem_backend_memory_Circular(
++            (UA_MemoryStoreContext *)backend->context, server, nodeId);
++    size_t snapshotSize = 0;
++    UA_CircularHistorySnapshotItem *snapshot =
++        collectCircularHistorySnapshot(item, &snapshotSize);
++    if(item != NULL && snapshot == NULL && snapshotSize == 0 && item->storeEnd > 0) {
+         return UA_STATUSCODE_BADOUTOFMEMORY;
+     }
+-    *result = outResult;
+-    size_t counter = 0;
+-    if(addFirst) {
+-        if(skip == 0) {
+-            outResult[counter].hasStatus = true;
+-            outResult[counter].status = UA_STATUSCODE_BADBOUNDNOTFOUND;
+-            outResult[counter].hasSourceTimestamp = true;
+-            if(start == LLONG_MIN) {
+-                outResult[counter].sourceTimestamp = end;
+-            } else {
+-                outResult[counter].sourceTimestamp = start;
+-            }
+-            ++counter;
+-        }
++
++    UA_Boolean reverse;
++    if(end == LLONG_MIN) {
++        reverse = false;
++    } else if(start == LLONG_MIN) {
++        reverse = true;
++    } else {
++        reverse = end < start;
+     }
+-    UA_ByteString backendOutContinuationPoint;
+-    UA_ByteString_init(&backendOutContinuationPoint);
+-    if(endIndex != storeEnd && startIndex != storeEnd) {
+-        size_t retval = 0;
+-        size_t valueSize = *resultSize - counter;
+-        if(valueSize + skip > _resultSize - addFirst - addLast) {
+-            if(skip == 0) {
+-                valueSize = _resultSize - addFirst - addLast;
+-            } else {
+-                valueSize = _resultSize - skip - addLast;
+-            }
+-        }
+-        UA_StatusCode ret = UA_STATUSCODE_GOOD;
+-        if(valueSize > 0)
+-            ret = backend->copyDataValues(server,
+-                                          backend->context,
+-                                          sessionId,
+-                                          sessionContext,
+-                                          nodeId,
+-                                          startIndex,
+-                                          endIndex,
+-                                          reverse,
+-                                          valueSize,
+-                                          range,
+-                                          releaseContinuationPoints,
+-                                          &backendContinuationPoint,
+-                                          &backendOutContinuationPoint,
+-                                          &retval,
+-                                          &outResult[counter]);
+-        if(ret != UA_STATUSCODE_GOOD) {
+-            UA_Array_delete(outResult, *resultSize, &UA_TYPES[UA_TYPES_DATAVALUE]);
+-            *result = NULL;
+-            *resultSize = 0;
+-            return ret;
+-        }
+-        counter += retval;
+-    }
+-    if(addLast && counter < *resultSize) {
+-        outResult[counter].hasStatus = true;
+-        outResult[counter].status = UA_STATUSCODE_BADBOUNDNOTFOUND;
+-        outResult[counter].hasSourceTimestamp = true;
+-        if(start == LLONG_MIN && storeEnd != backend->firstIndex(server, backend->context, sessionId, sessionContext, nodeId)) {
+-            outResult[counter].sourceTimestamp = backend->getDataValue(server, backend->context, sessionId, sessionContext, nodeId, endIndex)->sourceTimestamp - UA_DATETIME_SEC;
+-        } else if(end == LLONG_MIN && storeEnd != backend->firstIndex(server, backend->context, sessionId, sessionContext, nodeId)) {
+-            outResult[counter].sourceTimestamp = backend->getDataValue(server, backend->context, sessionId, sessionContext, nodeId, endIndex)->sourceTimestamp + UA_DATETIME_SEC;
+-        } else {
+-            outResult[counter].sourceTimestamp = end;
+-        }
++    size_t filteredSize =
++        countCircularHistoryMatches(snapshot, snapshotSize, start, end, reverse);
++
++    if(skip >= filteredSize) {
++        historyData->dataValuesSize = 0;
++        historyData->dataValues = NULL;
++        if(outContinuationPoint != NULL)
++            UA_ByteString_init(outContinuationPoint);
++        freeCircularHistorySnapshot(snapshot);
++        return UA_STATUSCODE_GOOD;
++    }
++
++    size_t availableSize = filteredSize - skip;
++    if(numValuesPerNode > 0 && availableSize > numValuesPerNode)
++        availableSize = numValuesPerNode;
++    if(availableSize > maxSize)
++        availableSize = maxSize;
++
++    historyData->dataValuesSize = availableSize;
++    if(historyData->dataValuesSize == 0) {
++        historyData->dataValues = NULL;
++        if(outContinuationPoint != NULL)
++            UA_ByteString_init(outContinuationPoint);
++        freeCircularHistorySnapshot(snapshot);
++        return UA_STATUSCODE_GOOD;
+     }
+-    // there are more values
+-    if(skip + *resultSize < _resultSize
+-       // there are not more values for this request, but there are more values in
+-       // database
+-       || (backendOutContinuationPoint.length > 0 && numValuesPerNode != 0)
+-       // we deliver just one value which is a FIRST/LAST value
+-       || (skip == 0 && addFirst == true && *resultSize == 1)) {
+-        if(UA_ByteString_allocBuffer(outContinuationPoint, backendOutContinuationPoint.length + sizeof(size_t)) != UA_STATUSCODE_GOOD) {
++
++    UA_DataValue *outResult = (UA_DataValue *)UA_Array_new(historyData->dataValuesSize,
++                                                           &UA_TYPES[UA_TYPES_DATAVALUE]);
++    if(!outResult) {
++        historyData->dataValuesSize = 0;
++        freeCircularHistorySnapshot(snapshot);
++        return UA_STATUSCODE_BADOUTOFMEMORY;
++    }
++    historyData->dataValues = outResult;
++
++    size_t counter =
++        copyCircularHistoryMatches(snapshot, snapshotSize, start, end, reverse, skip,
++                                   historyData->dataValuesSize, range, outResult);
++    historyData->dataValuesSize = counter;
++
++    if((filteredSize > skip + counter) && outContinuationPoint != NULL) {
++        if(UA_ByteString_allocBuffer(outContinuationPoint, sizeof(size_t)) !=
++           UA_STATUSCODE_GOOD) {
++            UA_Array_delete(outResult, historyData->dataValuesSize,
++                            &UA_TYPES[UA_TYPES_DATAVALUE]);
++            historyData->dataValues = NULL;
++            historyData->dataValuesSize = 0;
++            freeCircularHistorySnapshot(snapshot);
+             return UA_STATUSCODE_BADOUTOFMEMORY;
+         }
+-        *((size_t *)(outContinuationPoint->data)) = skip + *resultSize;
+-        if(backendOutContinuationPoint.length > 0)
+-            memcpy(outContinuationPoint->data + sizeof(size_t), backendOutContinuationPoint.data, backendOutContinuationPoint.length);
++        *((size_t *)(outContinuationPoint->data)) = skip + counter;
++    } else if(outContinuationPoint != NULL) {
++        UA_ByteString_init(outContinuationPoint);
+     }
+-    UA_ByteString_clear(&backendOutContinuationPoint);
++
++    freeCircularHistorySnapshot(snapshot);
+     return UA_STATUSCODE_GOOD;
+ }
+ 
+diff --git a/tests/server/check_server_historical_data_circular.c b/tests/server/check_server_historical_data_circular.c
+index 4f8112dce..81c173073 100644
+--- a/tests/server/check_server_historical_data_circular.c
++++ b/tests/server/check_server_historical_data_circular.c
+@@ -180,44 +180,80 @@ START_TEST(Server_HistorizingStrategyValueSet) {
+     //
+     //                  | 10 | 11 | 12 | 13 | 14 | 5 | 6 | 7 | 8 | 9 |
+     //
++    UA_DateTime timestamps[15];
+     UA_fakeSleep(100);
+-    UA_DateTime start = UA_DateTime_now_fake(NULL);
+-    UA_fakeSleep(100);
+-    for (UA_UInt32 i = 0; i < 15; ++i) {
++    for(UA_UInt32 i = 0; i < 15; ++i) {
++        timestamps[i] = UA_DateTime_now_fake(NULL);
+         retval = setUInt32(client, outNodeId, i);
+-        ck_assert_str_eq(UA_StatusCode_name(retval), UA_StatusCode_name(UA_STATUSCODE_GOOD));
++        ck_assert_str_eq(UA_StatusCode_name(retval),
++                         UA_StatusCode_name(UA_STATUSCODE_GOOD));
+         UA_fakeSleep(100);
+     }
+-    UA_DateTime end = UA_DateTime_now_fake(NULL);
++    UA_DateTime wideStart = timestamps[0] - UA_DATETIME_SEC;
++    UA_DateTime wideEnd = timestamps[14] + UA_DATETIME_SEC;
++    UA_DateTime narrowStart = timestamps[7];
++    UA_DateTime narrowEnd = timestamps[11];
+ 
+-    // request
++    // request full retained buffer with a wider time span than the buffer itself
+     UA_HistoryReadResponse response;
+     UA_HistoryReadResponse_init(&response);
+-    requestHistory(start, end, &response, 0, false, NULL);
++    requestHistory(wideStart, wideEnd, &response, 0, false, NULL);
++
++    // test the wide-range response
++    ck_assert_str_eq(UA_StatusCode_name(response.responseHeader.serviceResult),
++                     UA_StatusCode_name(UA_STATUSCODE_GOOD));
++    ck_assert_uint_eq(response.resultsSize, 1);
++    for(size_t i = 0; i < response.resultsSize; ++i) {
++        ck_assert_str_eq(UA_StatusCode_name(response.results[i].statusCode),
++                         UA_StatusCode_name(UA_STATUSCODE_GOOD));
++        ck_assert_uint_eq(response.results[i].historyData.encoding,
++                          UA_EXTENSIONOBJECT_DECODED);
++        ck_assert(response.results[i].historyData.content.decoded.type ==
++                  &UA_TYPES[UA_TYPES_HISTORYDATA]);
++        UA_HistoryData *data =
++            (UA_HistoryData *)response.results[i].historyData.content.decoded.data;
++        ck_assert_uint_eq(data->dataValuesSize, 10);
++        for(size_t j = 0; j < data->dataValuesSize; ++j) {
++            ck_assert(data->dataValues[j].sourceTimestamp >= wideStart &&
++                      data->dataValues[j].sourceTimestamp < wideEnd);
++            ck_assert_uint_eq(data->dataValues[j].hasSourceTimestamp, true);
++            ck_assert_str_eq(UA_StatusCode_name(data->dataValues[j].status),
++                             UA_StatusCode_name(UA_STATUSCODE_GOOD));
++            ck_assert_uint_eq(data->dataValues[j].hasValue, true);
++            ck_assert(data->dataValues[j].value.type == &UA_TYPES[UA_TYPES_UINT32]);
++            UA_UInt32 *value = (UA_UInt32 *)data->dataValues[j].value.data;
++            ck_assert_uint_eq(*value, j + 5);
++        }
++    }
++    UA_HistoryReadResponse_clear(&response);
++
++    // request a narrower time window and verify only the matching samples are returned
++    UA_HistoryReadResponse_init(&response);
++    requestHistory(narrowStart, narrowEnd, &response, 0, false, NULL);
+ 
+-    // test the response
+     ck_assert_str_eq(UA_StatusCode_name(response.responseHeader.serviceResult),
+                      UA_StatusCode_name(UA_STATUSCODE_GOOD));
+     ck_assert_uint_eq(response.resultsSize, 1);
+     for (size_t i = 0; i < response.resultsSize; ++i) {
+         ck_assert_str_eq(UA_StatusCode_name(response.results[i].statusCode),
+                          UA_StatusCode_name(UA_STATUSCODE_GOOD));
+-        ck_assert_uint_eq(response.results[i].historyData.encoding, UA_EXTENSIONOBJECT_DECODED);
+-        ck_assert(response.results[i].historyData.content.decoded.type == &UA_TYPES[UA_TYPES_HISTORYDATA]);
+-        UA_HistoryData * data = (UA_HistoryData *)response.results[i].historyData.content.decoded.data;
+-        ck_assert(data->dataValuesSize > 0);
+-        for (size_t j = 0; j < data->dataValuesSize; ++j) {
+-            ck_assert(data->dataValues[j].sourceTimestamp >= start && data->dataValues[j].sourceTimestamp < end);
++        ck_assert_uint_eq(response.results[i].historyData.encoding,
++                          UA_EXTENSIONOBJECT_DECODED);
++        ck_assert(response.results[i].historyData.content.decoded.type ==
++                  &UA_TYPES[UA_TYPES_HISTORYDATA]);
++        UA_HistoryData *data =
++            (UA_HistoryData *)response.results[i].historyData.content.decoded.data;
++        ck_assert_uint_eq(data->dataValuesSize, 4);
++        for(size_t j = 0; j < data->dataValuesSize; ++j) {
++            ck_assert(data->dataValues[j].sourceTimestamp >= narrowStart &&
++                      data->dataValues[j].sourceTimestamp < narrowEnd);
+             ck_assert_uint_eq(data->dataValues[j].hasSourceTimestamp, true);
+             ck_assert_str_eq(UA_StatusCode_name(data->dataValues[j].status),
+                              UA_StatusCode_name(UA_STATUSCODE_GOOD));
+             ck_assert_uint_eq(data->dataValues[j].hasValue, true);
+             ck_assert(data->dataValues[j].value.type == &UA_TYPES[UA_TYPES_UINT32]);
+-            UA_UInt32 * value = (UA_UInt32 *)data->dataValues[j].value.data;
+-            if(j >= 5)
+-                ck_assert_uint_eq(*value, j);
+-            else
+-                ck_assert_uint_eq(*value, j + 10);
++            UA_UInt32 *value = (UA_UInt32 *)data->dataValues[j].value.data;
++            ck_assert_uint_eq(*value, j + 7);
+         }
+     }
+     UA_HistoryReadResponse_clear(&response);
